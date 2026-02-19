@@ -5,6 +5,9 @@
 - `app.js`
 - `styles.css`
 - `questions.json`
+- `questions_10.json`
+- `questions_20.json`
+- `questions_30.json`
 
 ## 로컬 확인
 ```bash
@@ -13,10 +16,15 @@ python -m http.server 8080
 ```
 브라우저: `http://localhost:8080`
 
-## questions.json 재생성
+## 문제 세트 재생성(10/20/30)
 ```bash
-python 06_STRATEGY_REVIEW_GPT/scripts/build_manual_trader_quiz.py
+python 06_STRATEGY_REVIEW_GPT/scripts/build_manual_trader_quiz.py --counts 10 20 30
 ```
+
+앱 URL 쿼리:
+- `...?set=10`
+- `...?set=20`
+- `...?set=30`
 
 ## GitHub Pages 단독 리포로 배포 (권장)
 아래는 `GGobugiTheSquirtle/cryto-study`(오타 없는지 확인) 리포를 사용하는 예시입니다.

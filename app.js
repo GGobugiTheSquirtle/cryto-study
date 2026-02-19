@@ -1,10 +1,18 @@
-﻿const STORAGE_KEY = "manual_trader_quiz_answers_v1";
+﻿const STORAGE_KEY_PREFIX = "manual_trader_quiz_answers_v2";
+const DATASET_FILES = {
+  10: "questions_10.json",
+  20: "questions_20.json",
+  30: "questions_30.json",
+};
+const DEFAULT_DATASET = "30";
 
 const state = {
   payload: null,
   questions: [],
   currentIndex: 0,
   answers: {},
+  currentSet: DEFAULT_DATASET,
+  currentDatasetFile: "questions.json",
   chart: null,
   series: {},
 };
@@ -23,9 +31,22 @@ function byId(id) {
   return document.getElementById(id);
 }
 
+function getRequestedSet() {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("set");
+  if (requested && DATASET_FILES[requested]) {
+    return requested;
+  }
+  return DEFAULT_DATASET;
+}
+
+function currentStorageKey() {
+  return `${STORAGE_KEY_PREFIX}_${state.currentSet}`;
+}
+
 function loadAnswers() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(currentStorageKey());
     if (!raw) {
       return {};
     }
@@ -37,7 +58,15 @@ function loadAnswers() {
 }
 
 function saveAnswers() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.answers));
+  localStorage.setItem(currentStorageKey(), JSON.stringify(state.answers));
+}
+
+function updateSetSubtitle() {
+  const sub = byId("set-sub");
+  if (!sub) {
+    return;
+  }
+  sub.textContent = `백테스트 기반 ${state.questions.length}문항 실전 퀴즈`;
 }
 
 function setupChart() {
@@ -394,6 +423,11 @@ function renderAnswerPanel(question, answer) {
 function renderCurrent() {
   const question = state.questions[state.currentIndex];
   if (!question) {
+    byId("case-title").textContent = "문항 로드 실패";
+    byId("case-meta").textContent = `Dataset: ${state.currentDatasetFile}`;
+    byId("answer-panel").innerHTML = "<p>문항 데이터가 없습니다.</p>";
+    updateGlobalStats();
+    renderQuestionList();
     return;
   }
 
@@ -423,6 +457,10 @@ function renderCurrent() {
 
 function gradeCurrent() {
   const question = state.questions[state.currentIndex];
+  if (!question) {
+    return;
+  }
+
   const input = readFormValues();
 
   if (!input.direction || !input.move) {
@@ -451,6 +489,10 @@ function gradeCurrent() {
 
 function revealCurrent() {
   const question = state.questions[state.currentIndex];
+  if (!question) {
+    return;
+  }
+
   const answer = state.answers[question.id];
 
   if (!answer?.breakdown) {
@@ -485,18 +527,45 @@ function bindEvents() {
 
   byId("grade-btn").addEventListener("click", gradeCurrent);
   byId("reveal-btn").addEventListener("click", revealCurrent);
+
+  const setSelect = byId("set-select");
+  if (setSelect) {
+    setSelect.value = state.currentSet;
+    setSelect.addEventListener("change", (event) => {
+      const nextSet = String(event.target.value || "");
+      if (!DATASET_FILES[nextSet] || nextSet === state.currentSet) {
+        return;
+      }
+      const params = new URLSearchParams(window.location.search);
+      params.set("set", nextSet);
+      window.location.search = params.toString();
+    });
+  }
 }
 
-async function init() {
-  const res = await fetch("./questions.json", { cache: "no-store" });
+async function loadDataset(setKey) {
+  state.currentSet = setKey;
+  state.currentDatasetFile = DATASET_FILES[setKey] || "questions.json";
+
+  let res = await fetch(`./${state.currentDatasetFile}`, { cache: "no-store" });
+  if (!res.ok && state.currentDatasetFile !== "questions.json") {
+    state.currentDatasetFile = "questions.json";
+    res = await fetch("./questions.json", { cache: "no-store" });
+  }
   if (!res.ok) {
-    throw new Error(`questions.json load failed: ${res.status}`);
+    throw new Error(`${state.currentDatasetFile} load failed: ${res.status}`);
   }
 
   state.payload = await res.json();
   state.questions = state.payload.questions || [];
+  state.currentIndex = 0;
   state.answers = loadAnswers();
+  updateSetSubtitle();
+}
 
+async function init() {
+  const setKey = getRequestedSet();
+  await loadDataset(setKey);
   setupChart();
   bindEvents();
   renderCurrent();

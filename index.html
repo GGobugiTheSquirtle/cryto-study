@@ -16,7 +16,15 @@
     <div class="app-shell">
       <aside class="sidebar card">
         <h1>Manual Trader Workbook</h1>
-        <p class="sub">백테스트 기반 10문항 실전 퀴즈</p>
+        <p id="set-sub" class="sub">백테스트 기반 실전 퀴즈</p>
+        <div class="set-picker">
+          <label for="set-select">문항 세트</label>
+          <select id="set-select">
+            <option value="10">10문항</option>
+            <option value="20">20문항</option>
+            <option value="30">30문항</option>
+          </select>
+        </div>
         <div class="stats">
           <div>
             <span class="label">문항</span>
