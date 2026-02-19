@@ -9,6 +9,11 @@
 - `questions_20.json`
 - `questions_30.json`
 
+주요 기능:
+- 멀티 타임프레임 탭: `1H / 15M / 5M(분봉)`
+- 오버레이 토글: `EMA / Bollinger Band / Structure`
+- 사전 작도 표시: 이전 20봉 고저, VWAP, 가이드 추세선, 트랩 마커
+
 ## 로컬 확인
 ```bash
 cd docs/manual-quiz

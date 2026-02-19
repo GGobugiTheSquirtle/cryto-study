@@ -65,6 +65,18 @@
             </div>
             <span id="reveal-badge" class="pill">Hidden</span>
           </div>
+          <div class="chart-controls">
+            <div id="tf-tabs" class="tf-tabs">
+              <button type="button" class="tf-tab active" data-tf="1h">1H</button>
+              <button type="button" class="tf-tab" data-tf="15m">15M</button>
+              <button type="button" class="tf-tab" data-tf="5m">5M (분봉)</button>
+            </div>
+            <div class="overlay-toggles">
+              <label><input id="toggle-ema" type="checkbox" checked /> EMA</label>
+              <label><input id="toggle-bb" type="checkbox" checked /> BB</label>
+              <label><input id="toggle-structure" type="checkbox" checked /> Structure</label>
+            </div>
+          </div>
           <div id="chart" class="chart"></div>
         </section>
 
@@ -108,6 +120,8 @@
             <h3>힌트 / 스냅샷</h3>
             <p id="mindset" class="mindset"></p>
             <ul id="hint-list" class="hints"></ul>
+            <h4 class="basis-head">판단 근거</h4>
+            <ul id="basis-list" class="hints"></ul>
             <div id="snapshot" class="snapshot"></div>
           </section>
         </section>

@@ -13,6 +13,12 @@ const state = {
   answers: {},
   currentSet: DEFAULT_DATASET,
   currentDatasetFile: "questions.json",
+  activeTf: "1h",
+  overlays: {
+    ema: true,
+    bb: true,
+    structure: true,
+  },
   chart: null,
   series: {},
 };
@@ -123,6 +129,17 @@ function setupChart() {
     priceLineVisible: false,
   });
 
+  state.series.bbUpper = state.chart.addLineSeries({
+    color: "#7c3aed",
+    lineWidth: 1,
+    priceLineVisible: false,
+  });
+  state.series.bbLower = state.chart.addLineSeries({
+    color: "#7c3aed",
+    lineWidth: 1,
+    priceLineVisible: false,
+  });
+
   state.series.entry = state.chart.addLineSeries({
     color: "#1f2937",
     lineWidth: 1,
@@ -154,6 +171,31 @@ function setupChart() {
     priceLineVisible: false,
   });
 
+  state.series.structureHigh = state.chart.addLineSeries({
+    color: "#0ea5e9",
+    lineWidth: 1,
+    lineStyle: 2,
+    priceLineVisible: false,
+  });
+  state.series.structureLow = state.chart.addLineSeries({
+    color: "#0ea5e9",
+    lineWidth: 1,
+    lineStyle: 2,
+    priceLineVisible: false,
+  });
+  state.series.structureVwap = state.chart.addLineSeries({
+    color: "#d97706",
+    lineWidth: 1,
+    lineStyle: 1,
+    priceLineVisible: false,
+  });
+  state.series.trendGuide = state.chart.addLineSeries({
+    color: "#0f766e",
+    lineWidth: 2,
+    lineStyle: 0,
+    priceLineVisible: false,
+  });
+
   const resize = () => {
     const width = el.clientWidth || 800;
     const height = el.clientHeight || 460;
@@ -182,10 +224,83 @@ function toLine(item, key) {
 }
 
 function horizontalLineData(start, end, price) {
+  const num = Number(price);
+  if (!Number.isFinite(num)) {
+    return [];
+  }
   return [
-    { time: start, value: Number(price) },
-    { time: end, value: Number(price) },
+    { time: start, value: num },
+    { time: end, value: num },
   ];
+}
+
+function clearOverlaySeries() {
+  state.series.ema20.setData([]);
+  state.series.ema50.setData([]);
+  state.series.ema200.setData([]);
+  state.series.bbUpper.setData([]);
+  state.series.bbLower.setData([]);
+  state.series.entry.setData([]);
+  state.series.stop.setData([]);
+  state.series.t1.setData([]);
+  state.series.t2.setData([]);
+  state.series.flip.setData([]);
+  state.series.structureHigh.setData([]);
+  state.series.structureLow.setData([]);
+  state.series.structureVwap.setData([]);
+  state.series.trendGuide.setData([]);
+  state.series.candle.setMarkers([]);
+}
+
+function getTfPayload(question, tf) {
+  if (question?.timeframes && question.timeframes[tf]) {
+    return question.timeframes[tf];
+  }
+  if (tf === "15m" && question?.series) {
+    return {
+      series: question.series,
+      reveal_index: question.reveal_index,
+      drawings: question.drawings || {},
+      markers: question.markers || [],
+      context_bars: question.reveal_index + 1,
+      future_bars: Math.max(0, question.series.length - (question.reveal_index + 1)),
+    };
+  }
+  return null;
+}
+
+function getAvailableTfs(question) {
+  if (Array.isArray(question?.available_tfs) && question.available_tfs.length > 0) {
+    return question.available_tfs;
+  }
+  if (question?.timeframes && typeof question.timeframes === "object") {
+    return Object.keys(question.timeframes);
+  }
+  return ["15m"];
+}
+
+function normalizeActiveTf(question) {
+  const available = getAvailableTfs(question);
+  if (!available.includes(state.activeTf)) {
+    if (available.includes("1h")) {
+      state.activeTf = "1h";
+    } else if (available.includes("15m")) {
+      state.activeTf = "15m";
+    } else {
+      state.activeTf = available[0];
+    }
+  }
+  return available;
+}
+
+function renderTfTabs(available) {
+  document.querySelectorAll(".tf-tab").forEach((btn) => {
+    const tf = btn.dataset.tf;
+    const usable = available.includes(tf);
+    btn.disabled = !usable;
+    btn.style.opacity = usable ? "1" : "0.35";
+    btn.classList.toggle("active", usable && tf === state.activeTf);
+  });
 }
 
 function renderChart(question, revealed) {
@@ -193,52 +308,126 @@ function renderChart(question, revealed) {
     return;
   }
 
-  const allBars = question.series.map(toBar);
-  const cutoff = Number(question.reveal_index) + 1;
-  const visibleBars = revealed ? allBars : allBars.slice(0, cutoff);
-  const visibleSeries = revealed ? question.series : question.series.slice(0, cutoff);
-
-  state.series.candle.setData(visibleBars);
-  state.series.ema20.setData(visibleSeries.map((x) => toLine(x, "ema20")));
-  state.series.ema50.setData(visibleSeries.map((x) => toLine(x, "ema50")));
-  state.series.ema200.setData(visibleSeries.map((x) => toLine(x, "ema200")));
-
-  const start = visibleBars[0]?.time;
-  const end = visibleBars[visibleBars.length - 1]?.time;
-
-  if (!start || !end) {
+  const tfPayload = getTfPayload(question, state.activeTf);
+  if (!tfPayload || !Array.isArray(tfPayload.series) || tfPayload.series.length === 0) {
+    clearOverlaySeries();
     return;
   }
 
-  if (revealed) {
-    const fullStart = allBars[0]?.time;
-    const fullEnd = allBars[allBars.length - 1]?.time;
-    const answer = question.answer;
+  const allBars = tfPayload.series.map(toBar);
+  const cutoff = Number(tfPayload.reveal_index) + 1;
+  const visibleBars = revealed ? allBars : allBars.slice(0, cutoff);
+  const visibleSeries = revealed ? tfPayload.series : tfPayload.series.slice(0, cutoff);
 
-    state.series.entry.setData(horizontalLineData(fullStart, fullEnd, question.entry_price));
-    state.series.stop.setData(horizontalLineData(fullStart, fullEnd, answer.recommended_stop_price));
-    state.series.t1.setData(horizontalLineData(fullStart, fullEnd, answer.target_1_price));
-    state.series.t2.setData(horizontalLineData(fullStart, fullEnd, answer.target_2_price));
-    state.series.flip.setData(horizontalLineData(fullStart, fullEnd, answer.flip_price));
+  if (visibleBars.length === 0) {
+    clearOverlaySeries();
+    return;
+  }
 
-    state.series.candle.setMarkers([
-      {
-        time: Math.floor(Number(question.series[question.reveal_index].t) / 1000),
-        position: answer.direction === "long" ? "belowBar" : "aboveBar",
-        color: answer.direction === "long" ? "#166534" : "#b91c1c",
-        shape: answer.direction === "long" ? "arrowUp" : "arrowDown",
-        text: `${question.id} entry`,
-      },
-    ]);
+  state.series.candle.setData(visibleBars);
+
+  if (state.overlays.ema) {
+    state.series.ema20.setData(visibleSeries.map((x) => toLine(x, "ema20")));
+    state.series.ema50.setData(visibleSeries.map((x) => toLine(x, "ema50")));
+    state.series.ema200.setData(visibleSeries.map((x) => toLine(x, "ema200")));
   } else {
-    state.series.entry.setData([]);
+    state.series.ema20.setData([]);
+    state.series.ema50.setData([]);
+    state.series.ema200.setData([]);
+  }
+
+  if (state.overlays.bb) {
+    state.series.bbUpper.setData(visibleSeries.map((x) => toLine(x, "bb_u")));
+    state.series.bbLower.setData(visibleSeries.map((x) => toLine(x, "bb_l")));
+  } else {
+    state.series.bbUpper.setData([]);
+    state.series.bbLower.setData([]);
+  }
+
+  const start = visibleBars[0]?.time;
+  const end = visibleBars[visibleBars.length - 1]?.time;
+  if (!start || !end) {
+    clearOverlaySeries();
+    return;
+  }
+
+  const allStart = allBars[0]?.time;
+  const allEnd = allBars[allBars.length - 1]?.time;
+  const answer = question.answer || {};
+
+  state.series.entry.setData(horizontalLineData(start, end, question.entry_price));
+  if (revealed) {
+    state.series.stop.setData(horizontalLineData(allStart, allEnd, answer.recommended_stop_price));
+    state.series.t1.setData(horizontalLineData(allStart, allEnd, answer.target_1_price));
+    state.series.t2.setData(horizontalLineData(allStart, allEnd, answer.target_2_price));
+    state.series.flip.setData(horizontalLineData(allStart, allEnd, answer.flip_price));
+  } else {
     state.series.stop.setData([]);
     state.series.t1.setData([]);
     state.series.t2.setData([]);
     state.series.flip.setData([]);
-    state.series.candle.setMarkers([]);
   }
 
+  const drawings = tfPayload.drawings || {};
+  if (state.overlays.structure) {
+    state.series.structureHigh.setData(horizontalLineData(start, end, drawings.prev_high20));
+    state.series.structureLow.setData(horizontalLineData(start, end, drawings.prev_low20));
+    state.series.structureVwap.setData(horizontalLineData(start, end, drawings.vwap48));
+
+    const trend = drawings.guide_trend;
+    if (trend && Number.isFinite(Number(trend.t1)) && Number.isFinite(Number(trend.t2))) {
+      const t1 = Math.floor(Number(trend.t1) / 1000);
+      const t2 = Math.floor(Number(trend.t2) / 1000);
+      const p1 = Number(trend.p1);
+      const p2 = Number(trend.p2);
+      if (revealed || t2 <= end) {
+        state.series.trendGuide.setData([
+          { time: t1, value: p1 },
+          { time: t2, value: p2 },
+        ]);
+      } else {
+        state.series.trendGuide.setData([]);
+      }
+    } else {
+      state.series.trendGuide.setData([]);
+    }
+  } else {
+    state.series.structureHigh.setData([]);
+    state.series.structureLow.setData([]);
+    state.series.structureVwap.setData([]);
+    state.series.trendGuide.setData([]);
+  }
+
+  const markerLimitTime = end;
+  const markers = [];
+  if (state.overlays.structure && Array.isArray(tfPayload.markers)) {
+    tfPayload.markers.forEach((m) => {
+      const t = Math.floor(Number(m.t) / 1000);
+      if (Number.isFinite(t) && t <= markerLimitTime) {
+        markers.push({
+          time: t,
+          position: "aboveBar",
+          color: "#0ea5e9",
+          shape: "circle",
+          text: String(m.text || "M"),
+        });
+      }
+    });
+  }
+
+  const revealBar = tfPayload.series[Number(tfPayload.reveal_index)];
+  if (revealBar) {
+    markers.push({
+      time: Math.floor(Number(revealBar.t) / 1000),
+      position: answer.direction === "long" ? "belowBar" : "aboveBar",
+      color: answer.direction === "long" ? "#166534" : "#b91c1c",
+      shape: answer.direction === "long" ? "arrowUp" : "arrowDown",
+      text: revealed ? `${question.id} entry` : `${question.id}`,
+    });
+  }
+
+  markers.sort((a, b) => Number(a.time) - Number(b.time));
+  state.series.candle.setMarkers(markers);
   state.chart.timeScale().fitContent();
 }
 
@@ -380,7 +569,10 @@ function renderSnapshot(question) {
 
 function renderHints(question) {
   byId("mindset").textContent = question.mindset;
-  byId("hint-list").innerHTML = question.hints.map((h) => `<li>${h}</li>`).join("");
+  byId("hint-list").innerHTML = (question.hints || []).map((h) => `<li>${h}</li>`).join("");
+  byId("basis-list").innerHTML = (question.decision_basis || [])
+    .map((h) => `<li>${h}</li>`)
+    .join("");
 }
 
 function renderAnswerPanel(question, answer) {
@@ -432,9 +624,11 @@ function renderCurrent() {
   }
 
   const answer = state.answers[question.id];
+  const availableTfs = normalizeActiveTf(question);
+  renderTfTabs(availableTfs);
 
-  byId("case-title").textContent = `${question.id} ${question.symbol} ${question.timeframe} ${question.case_type}`;
-  byId("case-meta").textContent = `Entry ${question.entry_time_kst} | UTC ${question.entry_time_utc} | regime ${question.regime} | session ${question.session} | entry ${fmt(question.entry_price, 4)}`;
+  byId("case-title").textContent = `${question.id} ${question.symbol} ${question.timeframe} ${question.case_type} | ${state.activeTf.toUpperCase()}`;
+  byId("case-meta").textContent = `Entry ${question.entry_time_kst} | UTC ${question.entry_time_utc} | regime ${question.regime} | session ${question.session} | entry ${fmt(question.entry_price, 4)} | TF ${availableTfs.join("/")}`;
 
   const revealed = Boolean(answer?.revealed);
   const badge = byId("reveal-badge");
@@ -527,6 +721,38 @@ function bindEvents() {
 
   byId("grade-btn").addEventListener("click", gradeCurrent);
   byId("reveal-btn").addEventListener("click", revealCurrent);
+
+  document.querySelectorAll(".tf-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tf = btn.dataset.tf;
+      if (!tf || tf === state.activeTf || btn.disabled) {
+        return;
+      }
+      state.activeTf = tf;
+      renderCurrent();
+    });
+  });
+
+  const emaToggle = byId("toggle-ema");
+  const bbToggle = byId("toggle-bb");
+  const structureToggle = byId("toggle-structure");
+
+  emaToggle.checked = state.overlays.ema;
+  bbToggle.checked = state.overlays.bb;
+  structureToggle.checked = state.overlays.structure;
+
+  emaToggle.addEventListener("change", () => {
+    state.overlays.ema = Boolean(emaToggle.checked);
+    renderCurrent();
+  });
+  bbToggle.addEventListener("change", () => {
+    state.overlays.bb = Boolean(bbToggle.checked);
+    renderCurrent();
+  });
+  structureToggle.addEventListener("change", () => {
+    state.overlays.structure = Boolean(structureToggle.checked);
+    renderCurrent();
+  });
 
   const setSelect = byId("set-select");
   if (setSelect) {
