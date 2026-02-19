@@ -34,7 +34,7 @@ function parseStop(value) {
 }
 
 function dirKo(direction) {
-  return direction === "long" ? "롱" : direction === "short" ? "숏" : "-";
+  return direction === "long" ? "롱" : direction === "short" ? "숏" : "기타";
 }
 
 function moveKo(bucket) {
@@ -47,7 +47,7 @@ function moveKo(bucket) {
   if (bucket === "strong") {
     return "강함";
   }
-  return "-";
+  return "기타";
 }
 
 function caseTypeKo(value) {
@@ -57,7 +57,39 @@ function caseTypeKo(value) {
   if (value === "trap_case") {
     return "함정 케이스";
   }
-  return value || "-";
+  return "기타 케이스";
+}
+
+function sessionKo(value) {
+  if (value === "asia") {
+    return "아시아";
+  }
+  if (value === "london") {
+    return "런던";
+  }
+  if (value === "newyork") {
+    return "뉴욕";
+  }
+  if (value === "off") {
+    return "비세션";
+  }
+  return "기타 세션";
+}
+
+function exitReasonKo(value) {
+  if (value === "time") {
+    return "시간청산";
+  }
+  if (value === "stop" || value === "sl") {
+    return "손절";
+  }
+  if (value === "tp" || value === "target") {
+    return "익절";
+  }
+  if (value === "flip") {
+    return "반전청산";
+  }
+  return "기타 종료";
 }
 
 function emaStackKo(value) {
@@ -70,7 +102,7 @@ function emaStackKo(value) {
   if (value === "mixed") {
     return "혼합";
   }
-  return value || "-";
+  return "기타";
 }
 
 function tfKo(tf) {
@@ -507,14 +539,14 @@ function renderChart(question, revealed) {
       position: targetPosition,
       color: "#166534",
       shape: targetShape,
-      text: `권장 T1 ${fmt(answer.target_1_price, 4)}`,
+      text: `권장 목표가1 ${fmt(answer.target_1_price, 4)}`,
     });
     markers.push({
       time: allEnd,
       position: targetPosition,
       color: "#14532d",
       shape: targetShape,
-      text: `권장 T2 ${fmt(answer.target_2_price, 4)}`,
+      text: `권장 목표가2 ${fmt(answer.target_2_price, 4)}`,
     });
   }
 
@@ -647,7 +679,7 @@ function renderScore(answer) {
 function renderSnapshot(question) {
   const s = question.indicator_snapshot;
   const html = [
-    ["EMA 정렬", emaStackKo(s.ema_stack)],
+    ["EMA 정렬", s.ema_stack_ko || emaStackKo(s.ema_stack)],
     ["RSI14", fmt(s.rsi14, 2)],
     ["ATR14%", fmt(s.atr14_pct, 3)],
     ["거래량 비율20", fmt(s.vol_ratio20, 2)],
@@ -676,15 +708,15 @@ function renderAnswerPanel(question, answer) {
   }
 
   if (!answer.revealed) {
-    panel.innerHTML = `<p>현재 점수: <strong>${answer.breakdown.total} / 100</strong><br/>정답 공개를 누르면 차트에 권장 타겟(T1/T2), 스탑, 반전가가 표시됩니다.</p>`;
+    panel.innerHTML = `<p>현재 점수: <strong>${answer.breakdown.total} / 100</strong><br/>정답 공개를 누르면 차트에 권장 목표가1/2, 스탑, 반전가가 표시됩니다.</p>`;
     return;
   }
 
   const a = question.answer;
   const b = question.backtest_ref;
   const directionClass = a.direction === "long" ? "up" : "down";
-  const directionText = dirKo(a.direction);
-  const moveText = moveKo(a.move_bucket);
+  const directionText = a.direction_ko || dirKo(a.direction);
+  const moveText = a.move_bucket_ko || moveKo(a.move_bucket);
   panel.innerHTML = `
     <p>
       정답 방향: <strong class="${directionClass}">${directionText}</strong> /
@@ -701,7 +733,7 @@ function renderAnswerPanel(question, answer) {
       역행폭: <strong>${fmt(a.adverse_pct, 3)}%</strong>
     </p>
     <p>
-      백테스트 참조: 방향 ${dirKo(b.trade_direction)} / 손익 ${fmt(b.trade_pnl, 4)} / 보유봉 ${b.bars_held} / 종료사유 ${b.exit_reason}
+      백테스트 참조: 방향 ${dirKo(b.trade_direction)} / 손익 ${fmt(b.trade_pnl, 4)} / 보유봉 ${b.bars_held} / 종료사유 ${exitReasonKo(b.exit_reason)}
     </p>
   `;
 }
@@ -721,8 +753,8 @@ function renderCurrent() {
   const availableTfs = normalizeActiveTf(question);
   renderTfTabs(availableTfs);
 
-  byId("case-title").textContent = `${question.id} ${question.symbol} ${question.timeframe} ${caseTypeKo(question.case_type)} | ${tfKo(state.activeTf)}`;
-  byId("case-meta").textContent = `진입시각 ${question.entry_time_kst} | UTC ${question.entry_time_utc} | 레짐 ${question.regime} | 세션 ${question.session} | 진입가 ${fmt(question.entry_price, 4)} | 사용 TF ${availableTfs.map(tfKo).join(" / ")}`;
+  byId("case-title").textContent = `${question.id} ${question.symbol} ${tfKo(question.timeframe)} ${question.case_type_ko || caseTypeKo(question.case_type)} | ${tfKo(state.activeTf)}`;
+  byId("case-meta").textContent = `진입시각 ${question.entry_time_kst} | 세계표준시 ${question.entry_time_utc} | 레짐 ${question.regime} | 세션 ${sessionKo(question.session)} | 진입가 ${fmt(question.entry_price, 4)} | 사용 차트 ${availableTfs.map(tfKo).join(" / ")}`;
 
   const revealed = Boolean(answer?.revealed);
   const badge = byId("reveal-badge");
