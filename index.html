@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Crypto Study Manual Quiz</title>
+    <title>크립토 매매 훈련 퀴즈</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,7 +15,7 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar card">
-        <h1>Manual Trader Workbook</h1>
+        <h1>실전 매매 워크북</h1>
         <p id="set-sub" class="sub">백테스트 기반 실전 퀴즈</p>
         <div class="set-picker">
           <label for="set-select">문항 세트</label>
@@ -40,7 +40,7 @@
           </div>
         </div>
         <div class="question-list-wrap">
-          <h2>Questions</h2>
+          <h2>문항 목록</h2>
           <div id="question-list" class="question-list"></div>
         </div>
       </aside>
@@ -52,29 +52,29 @@
             <p id="case-meta" class="meta"></p>
           </div>
           <div class="head-actions">
-            <button id="prev-btn" class="ghost-btn">Prev</button>
-            <button id="next-btn" class="ghost-btn">Next</button>
+            <button id="prev-btn" class="ghost-btn">이전</button>
+            <button id="next-btn" class="ghost-btn">다음</button>
           </div>
         </section>
 
         <section class="chart-card card">
           <div class="chart-head">
             <div>
-              <strong>Chart</strong>
+              <strong>차트</strong>
               <span class="chart-sub">정답 공개 전에는 과거 구간만 표시</span>
             </div>
-            <span id="reveal-badge" class="pill">Hidden</span>
+            <span id="reveal-badge" class="pill">미공개</span>
           </div>
           <div class="chart-controls">
             <div id="tf-tabs" class="tf-tabs">
-              <button type="button" class="tf-tab active" data-tf="1h">1H</button>
-              <button type="button" class="tf-tab" data-tf="15m">15M</button>
-              <button type="button" class="tf-tab" data-tf="5m">5M (분봉)</button>
+              <button type="button" class="tf-tab active" data-tf="1h">1시간봉</button>
+              <button type="button" class="tf-tab" data-tf="15m">15분봉</button>
+              <button type="button" class="tf-tab" data-tf="5m">5분봉</button>
             </div>
             <div class="overlay-toggles">
-              <label><input id="toggle-ema" type="checkbox" checked /> EMA</label>
-              <label><input id="toggle-bb" type="checkbox" checked /> BB</label>
-              <label><input id="toggle-structure" type="checkbox" checked /> Structure</label>
+                <label><input id="toggle-ema" type="checkbox" checked /> EMA</label>
+                <label><input id="toggle-bb" type="checkbox" checked /> 볼린저밴드</label>
+                <label><input id="toggle-structure" type="checkbox" checked /> 구조선/작도</label>
             </div>
           </div>
           <div id="chart" class="chart"></div>
@@ -86,15 +86,15 @@
             <form id="answer-form" class="answer-form">
               <div class="field">
                 <span class="field-label">1) 방향</span>
-                <label><input type="radio" name="direction" value="long" /> Long</label>
-                <label><input type="radio" name="direction" value="short" /> Short</label>
+                <label><input type="radio" name="direction" value="long" /> 롱</label>
+                <label><input type="radio" name="direction" value="short" /> 숏</label>
               </div>
 
               <div class="field">
                 <span class="field-label">2) 예상 강도</span>
-                <label><input type="radio" name="move" value="weak" /> Weak (&lt;0.7%)</label>
-                <label><input type="radio" name="move" value="mid" /> Mid (0.7~1.5%)</label>
-                <label><input type="radio" name="move" value="strong" /> Strong (&gt;=1.5%)</label>
+                <label><input type="radio" name="move" value="weak" /> 약함 (&lt;0.7%)</label>
+                <label><input type="radio" name="move" value="mid" /> 중간 (0.7~1.5%)</label>
+                <label><input type="radio" name="move" value="strong" /> 강함 (&gt;=1.5%)</label>
               </div>
 
               <div class="field">
@@ -134,7 +134,7 @@
         </section>
 
         <section class="footer-note">
-          Data source: selected backtest trades + 15m OHLCV. Built for manual training.
+          데이터 소스: 선택 백테스트 체결 + 멀티 타임프레임 OHLCV
         </section>
       </main>
     </div>
